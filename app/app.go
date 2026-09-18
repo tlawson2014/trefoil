@@ -197,6 +197,15 @@ func New(
 		panic(err)
 	}
 
+	// Trefoil's transaction checks: the SDK's standard chain plus the
+	// guardian-bootstrap decorator (see ante.go). The tx module's own ante
+	// handler is switched off in app_config.go so this one is used instead.
+	anteHandler, err := newAnteHandler(app)
+	if err != nil {
+		panic(err)
+	}
+	app.SetAnteHandler(anteHandler)
+
 	/****  Module Options ****/
 
 	// create the simulation manager and define the order of the modules for deterministic simulations

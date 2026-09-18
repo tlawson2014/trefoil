@@ -199,8 +199,10 @@ var (
 				Config: appconfig.WrapAny(&slashingmodulev1.Module{}),
 			},
 			{
-				Name:   "tx",
-				Config: appconfig.WrapAny(&txconfigv1.Config{}),
+				Name: "tx",
+				// SkipAnteHandler: Trefoil installs its own ante handler in
+				// app.go (standard checks + guardian bootstrap).
+				Config: appconfig.WrapAny(&txconfigv1.Config{SkipAnteHandler: true}),
 			},
 			{
 				Name:   genutiltypes.ModuleName,

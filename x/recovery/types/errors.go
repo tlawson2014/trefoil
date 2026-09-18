@@ -36,4 +36,8 @@ var (
 	ErrTooManySafeDestinations = errors.Register(ModuleName, 1120, "too many safe destinations (max 5)")
 	ErrBadSafeDestination      = errors.Register(ModuleName, 1121, "invalid safe destination")
 	ErrNotSafeDestination      = errors.Register(ModuleName, 1122, "this account has safe destinations set; recovery may only send to one of them")
+
+	// Bootstrapping a new account via its first set-guardians
+	ErrBootstrapRejected  = errors.Register(ModuleName, 1130, "first transaction from a new account must be a single, fee-free set-guardians")
+	ErrTooManyNewAccounts = errors.Register(ModuleName, 1131, "too many new accounts in this block; try again next block")
 )

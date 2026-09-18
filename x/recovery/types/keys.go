@@ -17,3 +17,7 @@ const (
 
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_recovery")
+
+// BootstrapCountKey stores how many accounts were created via their first
+// set-guardians in a given block (the spam guard for that path).
+var BootstrapCountKey = collections.NewPrefix("bootstrap_count")

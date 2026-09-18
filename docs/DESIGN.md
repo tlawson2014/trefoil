@@ -73,6 +73,8 @@ Recovery needs both a majority of guardians *and* 48 hours of silence from the o
 
 **Safe destinations (v1.1, 18 Sep 2026):** an account may pre-register backup addresses. If any are set, a recovery can only send funds to one of them. Guardians still trigger and approve, but no longer choose where the money goes — so colluding guardians gain nothing.
 
+**Zero-coin sign-up (v1.2, 18 Sep 2026):** a stock Cosmos account doesn't exist until it receives coins, and a non-existent account can't sign. Trefoil's ante handler lets a never-seen address submit exactly one fee-free `SetGuardians` as its first transaction, signed with account number 0 and sequence 0; the chain verifies on that basis, creates the account with the sender's key, and sets sequence 1. Capped at 100 new accounts per block as a spam guard. Every other transaction goes through the unmodified standard checks.
+
 Module: `x/recovery`. Messages: `SetGuardians`, `RequestRecovery`, `ApproveRecovery`, `CancelRecovery`, `SetSafeDestinations`. An end-of-block hook executes recoveries whose delay has elapsed and drops expired requests.
 
 ## Consensus and validators
@@ -107,6 +109,7 @@ Real ideas, each of which would double the work. Parked, not rejected.
 - [x] One guardian alone cannot trigger recovery
 - [x] Automated tests cover all of the above and pass (`go test ./x/recovery/...`)
 - [x] Runs as a 4-validator network; survives one node down, pauses safely at two, resumes (18 Sep 2026)
+- [x] A wallet with zero coins can set guardians as its first act (18 Sep 2026)
 
 ## Roadmap
 

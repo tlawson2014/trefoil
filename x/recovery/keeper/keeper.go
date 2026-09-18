@@ -27,6 +27,10 @@ type Keeper struct {
 	Guardianset      collections.Map[string, types.Guardianset]
 	Recovery         collections.Map[string, types.Recovery]
 	Safedestinations collections.Map[string, types.Safedestinations]
+
+	// BootstrapCount: block height -> accounts created in that block via
+	// their first set-guardians. The spam guard for x/recovery/ante.
+	BootstrapCount collections.Map[int64, uint64]
 }
 
 func NewKeeper(
@@ -53,7 +57,9 @@ func NewKeeper(
 		authKeeper:  authKeeper,
 		bankKeeper:  bankKeeper,
 		Params:      collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
-		Guardianset: collections.NewMap(sb, types.GuardiansetKey, "guardianset", collections.StringKey, codec.CollValue[types.Guardianset](cdc)), Recovery: collections.NewMap(sb, types.RecoveryKey, "recovery", collections.StringKey, codec.CollValue[types.Recovery](cdc)), Safedestinations: collections.NewMap(sb, types.SafedestinationsKey, "safedestinations", collections.StringKey, codec.CollValue[types.Safedestinations](cdc))}
+		Guardianset: collections.NewMap(sb, types.GuardiansetKey, "guardianset", collections.StringKey, codec.CollValue[types.Guardianset](cdc)), Recovery: collections.NewMap(sb, types.RecoveryKey, "recovery", collections.StringKey, codec.CollValue[types.Recovery](cdc)), Safedestinations: collections.NewMap(sb, types.SafedestinationsKey, "safedestinations", collections.StringKey, codec.CollValue[types.Safedestinations](cdc)),
+		BootstrapCount: collections.NewMap(sb, types.BootstrapCountKey, "bootstrap_count", collections.Int64Key, collections.Uint64Value),
+	}
 
 	schema, err := sb.Build()
 	if err != nil {
