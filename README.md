@@ -10,9 +10,9 @@ not an add-on.
 
 Three interlocking rings — none can be pulled free without the others.
 
-**Status:** working prototype. One-node local chain; full recovery flow
-proven end to end (lost key → guardian recovery → veto) on 18 Sep 2026.
-Not a live network. Nothing here has value.
+**Status:** working prototype. Full recovery flow proven end to end (lost
+key → guardian recovery → veto) and runs as a four-validator local network
+that survives a node going down. Not a live network. Nothing here has value.
 
 Design doc: [docs/DESIGN.md](docs/DESIGN.md) — the pitch, the coin, the
 recovery rules, roadmap and open questions.

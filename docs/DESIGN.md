@@ -106,12 +106,13 @@ Real ideas, each of which would double the work. Parked, not rejected.
 - [x] After the delay, the balance and guardian set are on the new address
 - [x] One guardian alone cannot trigger recovery
 - [x] Automated tests cover all of the above and pass (`go test ./x/recovery/...`)
+- [x] Runs as a 4-validator network; survives one node down, pauses safely at two, resumes (18 Sep 2026)
 
 ## Roadmap
 
 1. ~~Public GitHub repo~~ (done, 18 Sep 2026)
 2. ~~Safe-destination addresses (v1.1)~~ (done, 18 Sep 2026)
-3. Multi-node local testnet: prove 3–5 validators agree and survive one going down
+3. ~~Multi-node local testnet: prove validators agree and survive one going down~~ (done, 18 Sep 2026 — 4 validators; lost one and kept going, lost two and paused, recovered when one returned)
 4. Small public testnet with volunteer validators; incentivised by the participant allocation
 5. A real wallet with guardian setup in onboarding — where the pitch becomes visible
 6. Same-address recovery (v2)
