@@ -19,8 +19,8 @@ import (
 //  2. Drop requests that expired without reaching the threshold.
 //
 // Executing a recovery means: move everything the lost account holds to the
-// new address, carry the guardian set across so the new account is protected
-// from day one, then delete the old guardian set and the recovery record.
+// new address, carry the guardian set and safe destinations across so the
+// new account is protected from day one, then delete the old records.
 //
 // Prototype note: this moves the LIQUID balance. Coins that are staked stay
 // staked on the old address; unstaking them is a v2 job (see README).
@@ -97,6 +97,29 @@ func (k Keeper) executeRecovery(ctx context.Context, rec types.Recovery) error {
 			return err
 		}
 		if err := k.Guardianset.Remove(ctx, rec.Account); err != nil {
+			return err
+		}
+	}
+
+	// 2b. Carry the safe destinations across too, minus the address we just
+	//     recovered into (it is now "self", and self is never a destination).
+	sd, err := k.Safedestinations.Get(ctx, rec.Account)
+	if err != nil && !errors.Is(err, collections.ErrNotFound) {
+		return err
+	}
+	if err == nil {
+		kept := make([]string, 0, len(sd.Addresses))
+		for _, a := range sd.Addresses {
+			if a != rec.Newaddress {
+				kept = append(kept, a)
+			}
+		}
+		if len(kept) > 0 {
+			if err := k.Safedestinations.Set(ctx, rec.Newaddress, types.Safedestinations{Owner: rec.Newaddress, Addresses: kept}); err != nil {
+				return err
+			}
+		}
+		if err := k.Safedestinations.Remove(ctx, rec.Account); err != nil {
 			return err
 		}
 	}

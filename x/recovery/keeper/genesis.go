@@ -18,6 +18,11 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 			return err
 		}
 	}
+	for _, elem := range genState.SafedestinationsMap {
+		if err := k.Safedestinations.Set(ctx, elem.Owner, elem); err != nil {
+			return err
+		}
+	}
 
 	return k.Params.Set(ctx, genState.Params)
 }
@@ -39,6 +44,12 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}
 	if err := k.Recovery.Walk(ctx, nil, func(_ string, val types.Recovery) (stop bool, err error) {
 		genesis.RecoveryMap = append(genesis.RecoveryMap, val)
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.Safedestinations.Walk(ctx, nil, func(_ string, val types.Safedestinations) (stop bool, err error) {
+		genesis.SafedestinationsMap = append(genesis.SafedestinationsMap, val)
 		return false, nil
 	}); err != nil {
 		return nil, err

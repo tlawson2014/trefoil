@@ -6,7 +6,7 @@ import "fmt"
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:         DefaultParams(),
-		GuardiansetMap: []Guardianset{}, RecoveryMap: []Recovery{}}
+		GuardiansetMap: []Guardianset{}, RecoveryMap: []Recovery{}, SafedestinationsMap: []Safedestinations{}}
 }
 
 // Validate performs basic genesis state validation returning an error upon any
@@ -29,6 +29,15 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("duplicated index for recovery")
 		}
 		recoveryIndexMap[index] = struct{}{}
+	}
+	safedestinationsIndexMap := make(map[string]struct{})
+
+	for _, elem := range gs.SafedestinationsMap {
+		index := fmt.Sprint(elem.Owner)
+		if _, ok := safedestinationsIndexMap[index]; ok {
+			return fmt.Errorf("duplicated index for safedestinations")
+		}
+		safedestinationsIndexMap[index] = struct{}{}
 	}
 
 	return gs.Params.Validate()

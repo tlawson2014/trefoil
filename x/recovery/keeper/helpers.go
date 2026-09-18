@@ -34,8 +34,13 @@ func (k Keeper) getGuardianSet(ctx context.Context, account string) (types.Guard
 
 // isGuardian reports whether addr is one of the guardians in gs.
 func isGuardian(gs types.Guardianset, addr string) bool {
-	for _, g := range gs.Guardians {
-		if g == addr {
+	return contains(gs.Guardians, addr)
+}
+
+// contains reports whether s appears in list.
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
 			return true
 		}
 	}

@@ -41,6 +41,18 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Alias:          []string{"show-recovery"},
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "account"}},
 				},
+				{
+					RpcMethod: "ListSafedestinations",
+					Use:       "list-safedestinations",
+					Short:     "List all safedestinations",
+				},
+				{
+					RpcMethod:      "GetSafedestinations",
+					Use:            "get-safedestinations [id]",
+					Short:          "Gets a safedestinations",
+					Alias:          []string{"show-safedestinations"},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "owner"}},
+				},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{
@@ -74,6 +86,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Use:            "cancel-recovery [account]",
 					Short:          "Send a cancel-recovery tx",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "account"}},
+				},
+				{
+					RpcMethod:      "SetSafeDestinations",
+					Use:            "set-safe-destinations [addresses]",
+					Short:          "Send a set-safe-destinations tx",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "addresses", Varargs: true}},
 				},
 			},
 		},

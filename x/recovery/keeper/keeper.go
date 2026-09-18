@@ -22,10 +22,11 @@ type Keeper struct {
 	Schema collections.Schema
 	Params collections.Item[types.Params]
 
-	authKeeper  types.AuthKeeper
-	bankKeeper  types.BankKeeper
-	Guardianset collections.Map[string, types.Guardianset]
-	Recovery    collections.Map[string, types.Recovery]
+	authKeeper       types.AuthKeeper
+	bankKeeper       types.BankKeeper
+	Guardianset      collections.Map[string, types.Guardianset]
+	Recovery         collections.Map[string, types.Recovery]
+	Safedestinations collections.Map[string, types.Safedestinations]
 }
 
 func NewKeeper(
@@ -52,7 +53,7 @@ func NewKeeper(
 		authKeeper:  authKeeper,
 		bankKeeper:  bankKeeper,
 		Params:      collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
-		Guardianset: collections.NewMap(sb, types.GuardiansetKey, "guardianset", collections.StringKey, codec.CollValue[types.Guardianset](cdc)), Recovery: collections.NewMap(sb, types.RecoveryKey, "recovery", collections.StringKey, codec.CollValue[types.Recovery](cdc))}
+		Guardianset: collections.NewMap(sb, types.GuardiansetKey, "guardianset", collections.StringKey, codec.CollValue[types.Guardianset](cdc)), Recovery: collections.NewMap(sb, types.RecoveryKey, "recovery", collections.StringKey, codec.CollValue[types.Recovery](cdc)), Safedestinations: collections.NewMap(sb, types.SafedestinationsKey, "safedestinations", collections.StringKey, codec.CollValue[types.Safedestinations](cdc))}
 
 	schema, err := sb.Build()
 	if err != nil {

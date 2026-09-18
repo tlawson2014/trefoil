@@ -71,7 +71,7 @@ Recovery needs both a majority of guardians *and* 48 hours of silence from the o
 - The request is submitted by a guardian on the owner's behalf (a brand-new wallet can't sign yet) and counts as the first approval.
 - Staked coins stay on the old address; unstaking them is a v2 job.
 
-**Safe destinations (v1.1, in progress):** an account may pre-register backup addresses. If any are set, a recovery can only send funds to one of them. Guardians still trigger and approve, but no longer choose where the money goes — so colluding guardians gain nothing.
+**Safe destinations (v1.1, 18 Sep 2026):** an account may pre-register backup addresses. If any are set, a recovery can only send funds to one of them. Guardians still trigger and approve, but no longer choose where the money goes — so colluding guardians gain nothing.
 
 Module: `x/recovery`. Messages: `SetGuardians`, `RequestRecovery`, `ApproveRecovery`, `CancelRecovery`, `SetSafeDestinations`. An end-of-block hook executes recoveries whose delay has elapsed and drops expired requests.
 
@@ -110,7 +110,7 @@ Real ideas, each of which would double the work. Parked, not rejected.
 ## Roadmap
 
 1. ~~Public GitHub repo~~ (done, 18 Sep 2026)
-2. Safe-destination addresses (v1.1)
+2. ~~Safe-destination addresses (v1.1)~~ (done, 18 Sep 2026)
 3. Multi-node local testnet: prove 3–5 validators agree and survive one going down
 4. Small public testnet with volunteer validators; incentivised by the participant allocation
 5. A real wallet with guardian setup in onboarding — where the pitch becomes visible

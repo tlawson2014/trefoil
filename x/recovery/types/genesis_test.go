@@ -21,7 +21,7 @@ func TestGenesisState_Validate(t *testing.T) {
 		},
 		{
 			desc:     "valid genesis state",
-			genState: &types.GenesisState{Params: types.DefaultParams(), GuardiansetMap: []types.Guardianset{{Owner: "0"}, {Owner: "1"}}, RecoveryMap: []types.Recovery{{Account: "0"}, {Account: "1"}}},
+			genState: &types.GenesisState{Params: types.DefaultParams(), GuardiansetMap: []types.Guardianset{{Owner: "0"}, {Owner: "1"}}, RecoveryMap: []types.Recovery{{Account: "0"}, {Account: "1"}}, SafedestinationsMap: []types.Safedestinations{{Owner: "0"}, {Owner: "1"}}},
 			valid:    true,
 		}, {
 			desc: "duplicated guardianset",
@@ -34,7 +34,7 @@ func TestGenesisState_Validate(t *testing.T) {
 						Owner: "0",
 					},
 				},
-				RecoveryMap: []types.Recovery{{Account: "0"}, {Account: "1"}}},
+				RecoveryMap: []types.Recovery{{Account: "0"}, {Account: "1"}}, SafedestinationsMap: []types.Safedestinations{{Owner: "0"}, {Owner: "1"}}},
 			valid: false,
 		}, {
 			desc: "duplicated recovery",
@@ -45,6 +45,19 @@ func TestGenesisState_Validate(t *testing.T) {
 					},
 					{
 						Account: "0",
+					},
+				},
+				SafedestinationsMap: []types.Safedestinations{{Owner: "0"}, {Owner: "1"}}},
+			valid: false,
+		}, {
+			desc: "duplicated safedestinations",
+			genState: &types.GenesisState{
+				SafedestinationsMap: []types.Safedestinations{
+					{
+						Owner: "0",
+					},
+					{
+						Owner: "0",
 					},
 				},
 			},

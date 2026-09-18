@@ -89,6 +89,21 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 		weightMsgCancelRecovery,
 		recoverysimulation.SimulateMsgCancelRecovery(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
 	))
+	const (
+		opWeightMsgSetSafeDestinations          = "op_weight_msg_recovery"
+		defaultWeightMsgSetSafeDestinations int = 100
+	)
+
+	var weightMsgSetSafeDestinations int
+	simState.AppParams.GetOrGenerate(opWeightMsgSetSafeDestinations, &weightMsgSetSafeDestinations, nil,
+		func(_ *rand.Rand) {
+			weightMsgSetSafeDestinations = defaultWeightMsgSetSafeDestinations
+		},
+	)
+	operations = append(operations, simulation.NewWeightedOperation(
+		weightMsgSetSafeDestinations,
+		recoverysimulation.SimulateMsgSetSafeDestinations(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
+	))
 
 	return operations
 }

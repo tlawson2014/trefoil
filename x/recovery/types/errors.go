@@ -31,4 +31,9 @@ var (
 	ErrRecoveryLocked    = errors.Register(ModuleName, 1115, "recovery already has enough approvals; it can only be cancelled by the account's own key")
 	ErrBadNewAddress     = errors.Register(ModuleName, 1116, "new address is invalid, or is the account being recovered")
 	ErrNotAccountOwner   = errors.Register(ModuleName, 1117, "only the account's own key can do this")
+
+	// Safe destinations
+	ErrTooManySafeDestinations = errors.Register(ModuleName, 1120, "too many safe destinations (max 5)")
+	ErrBadSafeDestination      = errors.Register(ModuleName, 1121, "invalid safe destination")
+	ErrNotSafeDestination      = errors.Register(ModuleName, 1122, "this account has safe destinations set; recovery may only send to one of them")
 )

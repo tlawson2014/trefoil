@@ -27,6 +27,9 @@ import (
 //  3. The new address must be valid and different from the lost account.
 //  4. There must not already be a live recovery for this account. An expired
 //     one is cleared automatically and does not block a new request.
+//  5. If the account has safe destinations set, the new address must be one
+//     of them. This is what stops colluding guardians recovering your coins
+//     into a wallet they control.
 //
 // If the threshold is 1 (single guardian), the request is immediately fully
 // approved and the waiting period starts now.
@@ -50,6 +53,15 @@ func (k msgServer) RequestRecovery(ctx context.Context, msg *types.MsgRequestRec
 	}
 	if !isGuardian(gs, msg.Creator) {
 		return nil, types.ErrNotGuardian
+	}
+
+	// 5. Safe destinations, if any, restrict where the coins may go
+	if sd, err := k.Safedestinations.Get(ctx, msg.Account); err == nil {
+		if !contains(sd.Addresses, msg.Newaddress) {
+			return nil, types.ErrNotSafeDestination
+		}
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return nil, err
 	}
 
 	// 4. No live recovery (getPendingRecovery clears an expired one for us)

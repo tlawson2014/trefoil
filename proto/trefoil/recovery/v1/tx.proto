@@ -29,6 +29,9 @@ service Msg {
 
   // CancelRecovery defines the CancelRecovery RPC.
   rpc CancelRecovery(MsgCancelRecovery) returns (MsgCancelRecoveryResponse);
+
+  // SetSafeDestinations defines the SetSafeDestinations RPC.
+  rpc SetSafeDestinations(MsgSetSafeDestinations) returns (MsgSetSafeDestinationsResponse);
 }
 // MsgUpdateParams is the Msg/UpdateParams request type.
 message MsgUpdateParams {
@@ -92,3 +95,13 @@ message MsgCancelRecovery {
 
 // MsgCancelRecoveryResponse defines the MsgCancelRecoveryResponse message.
 message MsgCancelRecoveryResponse {}
+
+// MsgSetSafeDestinations defines the MsgSetSafeDestinations message.
+message MsgSetSafeDestinations {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  repeated string addresses = 2;
+}
+
+// MsgSetSafeDestinationsResponse defines the MsgSetSafeDestinationsResponse message.
+message MsgSetSafeDestinationsResponse {}
