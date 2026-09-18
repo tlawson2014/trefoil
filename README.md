@@ -4,7 +4,7 @@ A Cosmos SDK chain where every account can nominate guardians, and losing
 your key is no longer the end. Three interlocking rings — none can be pulled
 free without the others.
 
-Design doc: see the "Trefoil (TFL) — Design Doc" in Claude.
+Design doc: [docs/DESIGN.md](docs/DESIGN.md) — the pitch, the coin, the recovery rules, roadmap and open questions.
 
 ## What's in here
 
