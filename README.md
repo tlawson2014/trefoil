@@ -171,6 +171,44 @@ t q bank balances $NEWTOM               # unchanged: one approval never executes
 Press `q` in the first window. To wipe the chain and start fresh (needed
 after editing `config.yml`): `ignite chain serve --reset-once`.
 
+## Run it as a network (four validators)
+
+`chain serve` is one validator, which is a database with extra steps. This
+runs four validators on your machine, each its own process, gossiping and
+voting on every block exactly as they would across the internet.
+
+```bash
+ignite testnet multi-node -r
+```
+
+It builds the chain, generates four validator setups from one genesis, and
+opens a screen with a tab per node. Press `1`–`4` to stop or start a node,
+`←`/`→` to look at each one's log, `q` to quit. Each tab shows the node's
+RPC address, e.g. `tcp://127.0.0.1:26657` — note the four port numbers.
+
+In a second terminal, watch all four heights climb together:
+
+```bash
+bash scripts/heights.sh PORT1 PORT2 PORT3 PORT4
+```
+
+Then, on the multi-node screen:
+
+1. Press `4` to stop node 4. Heights keep climbing on the other three —
+   75% of the stake is still online. That's the network surviving a failure.
+2. Press `3` to stop node 3 too. Heights **stop**. Only 50% is online, and
+   CometBFT needs more than two thirds to agree on a block. The chain pauses
+   rather than risk a split.
+3. Press `3` to bring node 3 back. Within a few seconds heights resume. Press
+   `4` and node 4 catches up to the others.
+
+Nothing was lost while the chain was paused — that's the point. Halting is
+the safe failure; a chain that kept going on 50% could fork into two
+histories.
+
+The stake amounts are in `config.yml`; the comment there explains why four
+equal validators and not three.
+
 ## Roadmap
 
 See [docs/DESIGN.md](docs/DESIGN.md#roadmap). In short: safe destinations →

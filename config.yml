@@ -1,9 +1,13 @@
 # Trefoil (TFL) — local development network
 #
-# This file only describes the LOCAL test chain that `ignite chain serve`
-# starts on your PC. Nothing here is the real genesis; that gets written by
-# hand when there is a public network. Think of it as the cast list for
-# rehearsals.
+# This file only describes the LOCAL test chains that Ignite starts on your
+# PC. Nothing here is the real genesis; that gets written by hand when there
+# is a public network. Think of it as the cast list for rehearsals.
+#
+# Two ways to run it:
+#   ignite chain serve            one validator (alice) + the accounts below
+#   ignite testnet multi-node     the four validators below, each its own node,
+#                                 talking to each other like a real network
 #
 # Units: 1 TFL = 1,000,000 utfl. Balances below are in utfl.
 
@@ -12,11 +16,12 @@ validation: sovereign
 default_denom: utfl
 
 accounts:
-  # alice runs the single validator and holds the bulk of the test supply.
+  # alice runs the single validator in `chain serve` mode and holds the bulk
+  # of the test supply.
   - name: alice
     coins: ["90000000000000utfl"]     # 90,000,000 TFL
 
-  # tom is the account we will deliberately "lose" the key to.
+  # tom is the account we deliberately "lose" the key to.
   - name: tom
     coins: ["5000000000utfl"]         # 5,000 TFL
 
@@ -38,12 +43,28 @@ faucet:
   name: bob
   coins: ["1000000utfl"]
 
+# Validators.
+#   `chain serve` uses only the first entry.
+#   `testnet multi-node` uses all of them, one node each, with these stakes.
+#
+# Four validators with EQUAL stake on purpose: CometBFT needs MORE than two
+# thirds of the stake online to make blocks. With four equal validators,
+# losing one leaves 75% (fine); losing two leaves 50% (the chain pauses until
+# one comes back). With three equal validators, losing just one leaves
+# exactly 66.7% — not more than two thirds — and the chain would pause. Four
+# lets you watch both behaviours.
 validators:
   - name: alice
-    bonded: "50000000000000utfl"       # 50,000,000 TFL staked
+    bonded: "100000000utfl"          # 100 TFL
     app:
       # Feeless: validators refuse nothing for lack of a fee.
       minimum-gas-prices: "0utfl"
+  - name: validator1
+    bonded: "100000000utfl"
+  - name: validator2
+    bonded: "100000000utfl"
+  - name: validator3
+    bonded: "100000000utfl"
 
 genesis:
   app_state:

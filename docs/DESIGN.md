@@ -81,7 +81,7 @@ Proof-of-stake on CometBFT via the Cosmos SDK (v0.53): nothing custom here, on p
 
 - Block time ~5 s; a transaction is final in one block.
 - Slashing: SDK defaults (double-sign, downtime).
-- Local prototype: 1 validator. Public testnet: 5–10. Mainnet target: 30+ before anyone is asked to hold real value.
+- Local prototype: 1 validator (`chain serve`) or 4 (`testnet multi-node`). Public testnet: 5–10. Mainnet target: 30+ before anyone is asked to hold real value.
 - Upgrades are proposed and voted on-chain, then applied at an agreed block height.
 
 ## Out of scope for the prototype
