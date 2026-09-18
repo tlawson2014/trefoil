@@ -1,27 +1,64 @@
+# Trefoil (TFL) — local development network
+#
+# This file only describes the LOCAL test chain that `ignite chain serve`
+# starts on your PC. Nothing here is the real genesis; that gets written by
+# hand when there is a public network. Think of it as the cast list for
+# rehearsals.
+#
+# Units: 1 TFL = 1,000,000 utfl. Balances below are in utfl.
+
 version: 1
 validation: sovereign
 default_denom: utfl
-accounts: 
-- name: alice
-  coins:
-  - 20000token
-  - 200000000utfl
-- name: bob
-  coins:
-  - 10000token
-  - 100000000utfl
-client:
-  openapi:
-    path: docs/static/openapi.json
+
+accounts:
+  # alice runs the single validator and holds the bulk of the test supply.
+  - name: alice
+    coins: ["90000000000000utfl"]     # 90,000,000 TFL
+
+  # tom is the account we will deliberately "lose" the key to.
+  - name: tom
+    coins: ["5000000000utfl"]         # 5,000 TFL
+
+  # Three guardians. Each needs a small balance so their accounts exist
+  # on-chain (an account the chain has never seen cannot sign anything).
+  - name: guardian1
+    coins: ["1000000utfl"]            # 1 TFL
+  - name: guardian2
+    coins: ["1000000utfl"]
+  - name: guardian3
+    coins: ["1000000utfl"]
+
+  # bob is a plain spare account for sending test transfers.
+  - name: bob
+    coins: ["1000000000utfl"]         # 1,000 TFL
+
+# The faucet hands out free test coins over HTTP (http://localhost:4500).
 faucet:
   name: bob
-  coins:
-  - 5token
-  - 100000stake
+  coins: ["1000000utfl"]
+
 validators:
-- name: alice
-  bonded: 100000000utfl
-- name: validator1
-  bonded: 200000000utfl
-- name: validator2
-  bonded: 100000000utfl
+  - name: alice
+    bonded: "50000000000000utfl"       # 50,000,000 TFL staked
+    app:
+      # Feeless: validators refuse nothing for lack of a fee.
+      minimum-gas-prices: "0utfl"
+
+genesis:
+  app_state:
+    recovery:
+      params:
+        # Design doc: 48h delay, 7-day expiry. For local testing we shrink
+        # them so the whole walkthrough fits in a coffee break.
+        recoverydelay: "60"           # seconds
+        requestexpiry: "3600"         # seconds
+    mint:
+      params:
+        # Inflation pays validators instead of transaction fees.
+        mint_denom: "utfl"
+        inflation_rate_change: "0.130000000000000000"
+        inflation_max: "0.070000000000000000"
+        inflation_min: "0.020000000000000000"
+        goal_bonded: "0.670000000000000000"
+        blocks_per_year: "6311520"

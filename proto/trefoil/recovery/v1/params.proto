@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package trefoil.recovery.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "trefoil/x/recovery/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (amino.name) = "trefoil/x/recovery/Params";
+  option (gogoproto.equal) = true;
+  int64 recoverydelay = 1;
+  int64 requestexpiry = 2;
+}
