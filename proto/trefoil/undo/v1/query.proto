@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package trefoil.undo.v1;
+
+import "amino/amino.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "trefoil/undo/v1/params.proto";
+import "trefoil/undo/v1/pending.proto";
+import "trefoil/undo/v1/record.proto";
+
+option go_package = "trefoil/x/undo/types";
+
+// Query defines the gRPC querier service.
+service Query {
+  // Parameters queries the parameters of the module.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/trefoil/undo/v1/params";
+  }
+
+  // ListPending Queries a list of Pending items.
+  rpc GetPending(QueryGetPendingRequest) returns (QueryGetPendingResponse) {
+    option (google.api.http).get = "/trefoil/undo/v1/pending/{id}";
+  }
+
+  // ListPending defines the ListPending RPC.
+  rpc ListPending(QueryAllPendingRequest) returns (QueryAllPendingResponse) {
+    option (google.api.http).get = "/trefoil/undo/v1/pending";
+  }
+
+  // ListRecord Queries a list of Record items.
+  rpc GetRecord(QueryGetRecordRequest) returns (QueryGetRecordResponse) {
+    option (google.api.http).get = "/trefoil/undo/v1/record/{index}";
+  }
+
+  // ListRecord defines the ListRecord RPC.
+  rpc ListRecord(QueryAllRecordRequest) returns (QueryAllRecordResponse) {
+    option (google.api.http).get = "/trefoil/undo/v1/record";
+  }
+}
+// QueryParamsRequest is request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  // params holds all the parameters of this module.
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+}
+
+// QueryGetPendingRequest defines the QueryGetPendingRequest message.
+message QueryGetPendingRequest {
+  uint64 id = 1;
+}
+
+// QueryGetPendingResponse defines the QueryGetPendingResponse message.
+message QueryGetPendingResponse {
+  Pending pending = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllPendingRequest defines the QueryAllPendingRequest message.
+message QueryAllPendingRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllPendingResponse defines the QueryAllPendingResponse message.
+message QueryAllPendingResponse {
+  repeated Pending pending = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryGetRecordRequest defines the QueryGetRecordRequest message.
+message QueryGetRecordRequest {
+  string index = 1;
+}
+
+// QueryGetRecordResponse defines the QueryGetRecordResponse message.
+message QueryGetRecordResponse {
+  Record record = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllRecordRequest defines the QueryAllRecordRequest message.
+message QueryAllRecordRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllRecordResponse defines the QueryAllRecordResponse message.
+message QueryAllRecordResponse {
+  repeated Record record = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}

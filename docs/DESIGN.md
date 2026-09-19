@@ -1,27 +1,31 @@
 # Trefoil (TFL) — Design
 
-*Last updated: 18 September 2026. Living document; the prototype changes it and it changes the prototype.*
+*Last updated: 19 September 2026. Living document; the prototype changes it and it changes the prototype.*
 
 ## The pitch
 
-Trefoil is a coin you can't lose. Every account on this chain has key recovery built in: if you lose your phone or your seed phrase, the guardians you chose can restore access, and no company ever holds your coins.
+Trefoil is the coin with an undo button. Every payment has a short countdown before it becomes final; until then the sender can take it back. After that it is final for everyone, forever — there is no company, arbiter or validator who can reverse it.
 
-The problem is real and unsolved at chain level. Around 16% of crypto holders have lost access to their holdings through lost keys, forgotten passwords or frozen accounts, and "no protection" is the second-biggest reason non-holders stay away. Ethereum offers recovery only as optional add-on wallets that most people never set up. Here it is the default for every account, free, and supported by every wallet on the chain.
+The problem is real and unsolved at chain level. One academic study put losses from address mistakes on Ethereum and BNB Chain alone at around $575M. Every chain treats "sent to the wrong address" as the user's problem; the two prior attempts at undo were a third-party add-on (Kirobo, 2021, which needed both sides to use its app) and a proposal by a stablecoin company to reverse transactions itself (Circle, 2025, which the market read as chargebacks). Trefoil's version is native, sender-only, and expiring: the chain enforces it, nobody adjudicates it, and a payment that has become final cannot be touched by anyone.
 
-One sentence for a stranger: *"It's crypto where losing your password isn't the end."*
+One sentence for a stranger: *"It's crypto where sending to the wrong address isn't the end."*
 
-The name is the three-loop knot — three interlocking rings, none can be pulled free without the others — which is the guardian model in a picture.
+The name is the three-loop knot: send, wait, final.
+
+## How it got here
+
+Trefoil began (17–19 Sep 2026) as *a wallet you can't lose*: guardian-based recovery built into every account, with a 48-hour veto, safe destinations and a zero-coin sign-up path. All of it was built, tested and proven on a live chain. The flaw was in the onboarding, not the cryptography: every new user had to nominate three guardians before doing anything, and on a chain with no users yet that meant generating and writing down four seed phrases at sign-up. The delay-and-cancel machinery underneath was reused for a problem one person can solve alone. The recovery module lives in git history.
 
 ## The coin
 
 | Parameter | Value | Why |
 | --- | --- | --- |
-| Name / ticker | Trefoil / TFL (base unit `utfl`, 1 TFL = 1,000,000 utfl) | No existing token or chain found under this name |
+| Name / ticker | Trefoil / TFL (base unit `utfl`, 1 TFL = 1,000,000 utfl) | No existing chain under this name; "UNDO" as a ticker is taken by an unrelated token |
 | Initial supply | 100,000,000 TFL | Round numbers, human-sized balances |
 | Transaction fee | 0 | Feels like a normal app; matches the pitch |
 | Inflation | 7%/yr at launch, falling toward 2% as staking rises | Pays validators and stakers instead of fees |
 | Where inflation goes | ~90% to validators and their stakers, ~10% to community pool | Security first, a treasury for grants second |
-| Spam control | Per-account rate limit, block size cap | Zero fees need another brake on abuse |
+| Spam control | Per-account cap on pending sends, block size cap | Zero fees need another brake on abuse |
 
 The trade-off to say out loud: holders who don't stake are diluted ~7%/yr. Staking should be one click in the wallet, so the default experience is "your coins earn" rather than "your coins shrink".
 
@@ -39,49 +43,47 @@ Weighted toward the people who help launch it rather than the founder. Starting 
 
 For the local prototype none of this matters: `config.yml` hands everything to a few test accounts. The split becomes real at the first public testnet.
 
-## Account recovery
-
-Default: 3 guardians, any 2 approve, 48-hour delay before the switch. Guardians can never spend; the only power they hold is a vote to move the account.
+## Undo
 
 | Rule | Value |
 | --- | --- |
-| Guardians per account | 3 by default (min 1, max 7) |
-| Approvals needed | Strict majority (2 of 3, 3 of 5) |
-| Recovery delay | 48 h after the threshold is met (60 s on the local dev chain) |
-| Request expiry | 7 days unapproved (1 h locally) |
-| Cancel during delay | Original key, one transaction |
-| Changing guardians | Blocked while a recovery is pending |
-| Guardian types | Any chain account: a friend, your own second device, or a recovery service |
+| Minimum window | 2 minutes — every payment waits at least this long |
+| Default window | 10 minutes (what you get if you don't choose) |
+| Maximum window | 24 hours |
+| Who can undo | The sender only, before the window closes |
+| Where the coins sit meanwhile | The undo module's holding account — not the sender's, not the recipient's |
+| Pending sends per address | 20 in flight at once |
+| Recipient opt-out | `set-final-only`: payments to this address have no window and land instantly |
+| Public tally | Every address: sends started, sends cancelled |
 
 ```mermaid
 flowchart TD
-    A[Owner loses key] --> B[Guardian submits request\nwith owner's new address]
-    B --> C{Threshold of\nguardians approve?}
-    C -- no, 7 days pass --> D[Request expires]
-    C -- yes --> E[48 h delay starts]
-    E --> F{Old key cancels?}
-    F -- yes --> G[Recovery void]
-    F -- no --> H[Chain moves balance and\nguardian set to new address]
+    A[Sender: delayed-send] --> B[Coins move to holding\nPending record with execute time]
+    B --> C{Window still open?}
+    C -- sender cancels --> D[Coins back to sender\nTally: cancelled +1]
+    C -- clock runs out --> E[End of block: chain pays recipient\nFinal, irreversible]
+    F[Recipient is final-only] --> G[No window allowed\nCoins move instantly]
 ```
 
-Recovery needs both a majority of guardians *and* 48 hours of silence from the old key, so a thief who holds your phone can't finish a takeover before you notice, and colluding guardians can't act while you still have your key.
+**The bait problem.** "Look, the payment's coming" → goods handed over → cancel. It cannot be removed while undo exists; it can be made an unforced error rather than a trap:
 
-**Prototype v1 decisions (17 Sep 2026):**
-- Recovery moves the account's full liquid balance to a *new address* and carries the guardian set across, rather than keeping the same address. Same-address recovery (rotating the key underneath an address) needs wallet support that doesn't exist yet; it is the v2 design.
-- The request is submitted by a guardian on the owner's behalf (a brand-new wallet can't sign yet) and counts as the first approval.
-- Staked coins stay on the old address; unstaking them is a v2 job.
+1. Pending is never money. The wallet shows incoming pending as *promised, not yours yet — don't hand anything over*; the balance does not move until final.
+2. Final-only mode for anyone who hands over goods on the spot. The chain refuses undoable sends to such an address, and the sender's wallet warns before sending.
+3. The tally is public. Serial cancellers build a visible record, and wallets warn before you deal with one.
 
-**Safe destinations (v1.1, 18 Sep 2026):** an account may pre-register backup addresses. If any are set, a recovery can only send funds to one of them. Guardians still trigger and approve, but no longer choose where the money goes — so colluding guardians gain nothing.
+**Prototype v1 decisions (19 Sep 2026):**
+- Window 0 in a send means "chain default", except to a final-only address, where 0 is the sender's explicit acknowledgement that the payment is instant. A non-zero window to a final-only address is refused.
+- Pending sends already in flight when an address turns on final-only finish under the rules they started with.
+- The per-address cap is a walk over the pending table; fine for a prototype, an index for a real deployment.
+- The tally is a plain counter. Time-decay, ratios and warnings are wallet policy, not chain rules.
 
-**Zero-coin sign-up (v1.2, 18 Sep 2026):** a stock Cosmos account doesn't exist until it receives coins, and a non-existent account can't sign. Trefoil's ante handler lets a never-seen address submit exactly one fee-free `SetGuardians` as its first transaction, signed with account number 0 and sequence 0; the chain verifies on that basis, creates the account with the sender's key, and sets sequence 1. Capped at 100 new accounts per block as a spam guard. Every other transaction goes through the unmodified standard checks.
-
-Module: `x/recovery`. Messages: `SetGuardians`, `RequestRecovery`, `ApproveRecovery`, `CancelRecovery`, `SetSafeDestinations`. An end-of-block hook executes recoveries whose delay has elapsed and drops expired requests.
+Module: `x/undo`. Messages: `DelayedSend`, `CancelSend`, `SetFinalOnly`. An end-of-block hook pays out sends whose window has closed.
 
 ## Consensus and validators
 
-Proof-of-stake on CometBFT via the Cosmos SDK (v0.53): nothing custom here, on purpose. The novelty budget is spent entirely on recovery.
+Proof-of-stake on CometBFT via the Cosmos SDK (v0.53): nothing custom here, on purpose. The novelty budget is spent entirely on undo.
 
-- Block time ~5 s; a transaction is final in one block.
+- Block time ~5 s; a transaction is final in one block; a payment is final when its window closes.
 - Slashing: SDK defaults (double-sign, downtime).
 - Local prototype: 1 validator (`chain serve`) or 4 (`testnet multi-node`). Public testnet: 5–10. Mainnet target: 30+ before anyone is asked to hold real value.
 - Upgrades are proposed and voted on-chain, then applied at an agreed block height.
@@ -90,48 +92,50 @@ Proof-of-stake on CometBFT via the Cosmos SDK (v0.53): nothing custom here, on p
 
 Real ideas, each of which would double the work. Parked, not rejected.
 
-- Smart contracts (CosmWasm)
-- Reversal window for stolen funds — legally heavy
-- IBC connections to other chains — easy to switch on later
-- Post-quantum signatures — needs specialist review
-- Mobile wallet — the CLI is enough to prove the flow
-- Any token sale, exchange listing or public marketing
+- **Spending vault** — a daily limit; anything above it is a 24-hour cancellable send to yourself. Same engine; protects against a stolen phone.
+- **Inheritance** — a claim that goes through if the account is silent for a year. Same engine, one heir.
+- **Guardian recovery** — built, proven, shelved for onboarding cost. In git history.
+- Smart contracts (CosmWasm), IBC connections, post-quantum signatures, mobile app, any token sale or listing.
 
 ## Definition of done (prototype)
 
 - [x] Chain starts from one command and produces blocks
 - [x] Coins move between accounts with zero fee
-- [x] An account sets three guardians
-- [x] Its key is deleted on purpose
-- [x] A guardian requests recovery to a new address; a second approves
-- [x] The original key can cancel inside the delay (proven on the live chain, 18 Sep 2026)
-- [x] After the delay, the balance and guardian set are on the new address
-- [x] One guardian alone cannot trigger recovery
-- [x] Automated tests cover all of the above and pass (`go test ./x/recovery/...`)
-- [x] Runs as a 4-validator network; survives one node down, pauses safely at two, resumes (18 Sep 2026)
-- [x] A wallet with zero coins can set guardians as its first act (18 Sep 2026)
+- [x] A send with a window parks the coins; the recipient's balance does not change
+- [x] The sender can cancel inside the window and the coins come back
+- [x] Nobody but the sender can cancel
+- [x] When the window closes the chain pays out by itself; a later cancel is refused (proven live, 19 Sep 2026)
+- [x] Windows outside min/max are refused; 0 means default
+- [x] A final-only address refuses undoable sends and is paid instantly with window 0 (proven live, 19 Sep 2026)
+- [x] The tally counts sends and cancels
+- [x] One address cannot exceed the pending cap
+- [x] Automated tests cover all of the above and pass (`go test ./x/undo/...`)
+- [x] Runs as a 4-validator network; survives one node down, pauses safely at two, resumes
+- [ ] The wallet shows the countdown, the Undo button, and pending-in as "not yours yet"
 
 ## Roadmap
 
-1. ~~Public GitHub repo~~ (done, 18 Sep 2026)
-2. ~~Safe-destination addresses (v1.1)~~ (done, 18 Sep 2026)
-3. ~~Multi-node local testnet: prove validators agree and survive one going down~~ (done, 18 Sep 2026 — 4 validators; lost one and kept going, lost two and paused, recovered when one returned)
-4. Small public testnet with volunteer validators; incentivised by the participant allocation
-5. A real wallet with guardian setup in onboarding — where the pitch becomes visible
-6. Same-address recovery (v2)
+1. ~~Public GitHub repo~~ (done)
+2. ~~Multi-node local testnet~~ (done — 4 validators; lost one and kept going, lost two and paused, recovered)
+3. ~~Undo module on the chain, proven live~~ (done, 19 Sep 2026)
+4. Wallet with undo: send with countdown, Undo button, pending-in shown as promised, shop switch in settings, tally shown before you send
+5. Small public testnet with volunteer validators; incentivised by the participant allocation
+6. Spending vault (same engine, second feature)
 7. Legal review before any coin has value or is offered to the public
 8. Mainnet genesis
 
 ## Open questions and risks
 
 - **Legal.** Promoting crypto to the UK public is FCA-regulated, and a coin people expect to rise can be treated as a security. Get advice before step 7; a local prototype has no exposure. Not legal advice.
-- **Guardian collusion.** Two guardians plus a stolen phone within 48 h is the failure case. Mitigations: safe destinations (v1.1); one guardian being your own second device; wallets notifying the owner on every recovery request.
-- **Guardians who vanish.** With 3 guardians, losing two makes recovery impossible. The wallet should prompt a guardian check-in periodically.
-- **Adoption.** The technology is the easy part. Nothing here gets users; the wallet in roadmap step 5 is the first thing a normal person would ever see.
+- **No instant payments** except to final-only addresses. A deliberate choice — the 2-minute floor is what makes "every payment can be undone" true — but it means merchants must opt in. If that bites in practice, a recipient-side "accept instantly" is a small change.
+- **Bait-and-cancel.** Mitigated (above), not eliminated. The wallet copy matters as much as the chain rules.
+- **Adoption.** The technology is the easy part. Nothing here gets users; the wallet in roadmap step 4 is the first thing a normal person would ever see.
 - **Inflation optics.** "7% a year" reads badly if not framed as staking yield.
 - **Name.** Domain availability and a trademark search still to do before public launch.
 
 ## Sources
 
-- [Security.org — 2026 crypto consumer report](https://www.security.org/digital-security/cryptocurrency-annual-consumer-report/) (16% lost access; protection concerns)
-- [PYMNTS — Fed report on everyday crypto use](https://www.pymnts.com/cryptocurrency/2026/the-federal-reserve-confirms-crypto-as-money-hasnt-happened-yet/)
+- [Crypto 'address misuse' drained $574.8M in ETH and BNB — USENIX study](https://ambcrypto.com/crypto-address-misuse-drained-574-8m-in-eth-and-bnb-usenix-study/)
+- [Kirobo's undo button (2021)](https://www.crowdfundinsider.com/2021/07/177764-kirobos-undo-button-is-said-to-have-saved-users-6-million-in-crypto/)
+- [Circle examines reversible transactions (2025)](https://www.coindesk.com/business/2025/09/25/circle-examines-ways-to-reverse-transactions-to-counter-fraud-disputes-ft)
+- [Security.org — 2026 crypto consumer report](https://www.security.org/digital-security/cryptocurrency-annual-consumer-report/) (original recovery research)

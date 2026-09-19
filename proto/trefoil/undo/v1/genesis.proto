@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package trefoil.undo.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "trefoil/undo/v1/params.proto";
+import "trefoil/undo/v1/pending.proto";
+import "trefoil/undo/v1/record.proto";
+
+option go_package = "trefoil/x/undo/types";
+
+// GenesisState defines the undo module's genesis state.
+message GenesisState {
+  // params defines all the parameters of the module.
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+  repeated Pending pending_list = 2 [(gogoproto.nullable) = false];
+  uint64 pending_count = 3;
+  repeated Record record_map = 4 [(gogoproto.nullable) = false];
+}

@@ -21,22 +21,17 @@ accounts:
   - name: alice
     coins: ["90000000000000utfl"]     # 90,000,000 TFL
 
-  # tom is the account we deliberately "lose" the key to.
+  # tom sends the test payments in the walkthrough.
   - name: tom
     coins: ["5000000000utfl"]         # 5,000 TFL
 
-  # Three guardians. Each needs a small balance so their accounts exist
-  # on-chain (an account the chain has never seen cannot sign anything).
-  - name: guardian1
-    coins: ["1000000utfl"]            # 1 TFL
-  - name: guardian2
-    coins: ["1000000utfl"]
-  - name: guardian3
-    coins: ["1000000utfl"]
-
-  # bob is a plain spare account for sending test transfers.
+  # bob receives them.
   - name: bob
     coins: ["1000000000utfl"]         # 1,000 TFL
+
+  # shop is the account that switches on "final only".
+  - name: shop
+    coins: ["1000000utfl"]            # 1 TFL
 
 # The faucet hands out free test coins over HTTP (http://localhost:4500).
 faucet:
@@ -68,12 +63,15 @@ validators:
 
 genesis:
   app_state:
-    recovery:
+    undo:
       params:
-        # Design doc: 48h delay, 7-day expiry. For local testing we shrink
-        # them so the whole walkthrough fits in a coffee break.
-        recoverydelay: "60"           # seconds
-        requestexpiry: "3600"         # seconds
+        # The undo window, in seconds. Every send waits at least minwindow
+        # before it is final; the sender can pick anything up to maxwindow.
+        # These are the real defaults, not shrunk for testing: two minutes
+        # is short enough to sit through in a walkthrough.
+        minwindow: "120"
+        defaultwindow: "600"
+        maxwindow: "86400"
     mint:
       params:
         # Inflation pays validators instead of transaction fees.

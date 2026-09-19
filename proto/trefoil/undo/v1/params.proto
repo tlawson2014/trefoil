@@ -1,0 +1,17 @@
+syntax = "proto3";
+package trefoil.undo.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "trefoil/x/undo/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (amino.name) = "trefoil/x/undo/Params";
+  option (gogoproto.equal) = true;
+
+  uint64 minwindow = 1;
+  uint64 defaultwindow = 2;
+  uint64 maxwindow = 3;
+}

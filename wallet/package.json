@@ -1,0 +1,22 @@
+{
+  "name": "trefoil-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trefoil web wallet — guardian setup at sign-up, recovery, the alarm.",
+  "scripts": {
+    "build": "esbuild src/app.js --bundle --minify --format=iife --target=es2020 --outfile=dist/app.js",
+    "serve": "python3 -m http.server 8080"
+  },
+  "dependencies": {
+    "@cosmjs/amino": "^0.39.0",
+    "@cosmjs/crypto": "^0.39.0",
+    "@cosmjs/encoding": "^0.39.0",
+    "@cosmjs/proto-signing": "^0.39.0",
+    "cosmjs-types": "^0.11.0",
+    "protobufjs": "^7.0.0",
+    "qrcode": "^1.5.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -1,0 +1,21 @@
+syntax = "proto3";
+package trefoil.undo.v1;
+
+option go_package = "trefoil/x/undo/types";
+
+// Record is the public tally kept for every address that has used undo.
+//
+//   index      the address
+//   sent       how many undoable sends it has started
+//   cancelled  how many of those it took back
+//   finalonly  the shop switch: if true, payments TO this address cannot
+//              have an undo window and land immediately
+//
+// sent/cancelled is the accountability log: an address that keeps
+// promising payments and cancelling them wears that history in public.
+message Record {
+  string index = 1;
+  uint64 sent = 2;
+  uint64 cancelled = 3;
+  bool finalonly = 4;
+}

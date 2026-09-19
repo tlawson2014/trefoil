@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package trefoil.undo.v1;
+
+import "amino/amino.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "trefoil/undo/v1/params.proto";
+
+option go_package = "trefoil/x/undo/types";
+
+// Msg defines the Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // UpdateParams defines a (governance) operation for updating the module
+  // parameters. The authority defaults to the x/gov module account.
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+
+  // DelayedSend defines the DelayedSend RPC.
+  rpc DelayedSend(MsgDelayedSend) returns (MsgDelayedSendResponse);
+
+  // CancelSend defines the CancelSend RPC.
+  rpc CancelSend(MsgCancelSend) returns (MsgCancelSendResponse);
+
+  // SetFinalOnly defines the SetFinalOnly RPC.
+  rpc SetFinalOnly(MsgSetFinalOnly) returns (MsgSetFinalOnlyResponse);
+}
+// MsgUpdateParams is the Msg/UpdateParams request type.
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  option (amino.name) = "trefoil/x/undo/MsgUpdateParams";
+
+  // authority is the address that controls the module (defaults to x/gov unless overwritten).
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  // params defines the module parameters to update.
+
+  // NOTE: All parameters must be supplied.
+  Params params = 2 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+}
+
+// MsgUpdateParamsResponse defines the response structure for executing a
+// MsgUpdateParams message.
+message MsgUpdateParamsResponse {}
+
+// MsgDelayedSend starts a send with an undo window.
+//   window   seconds before the coins become the recipient's. 0 means
+//            "use the chain default". Must sit between the chain's minimum
+//            and maximum. To an address marked final-only it MUST be 0,
+//            and the coins land immediately.
+message MsgDelayedSend {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string recipient = 2;
+  cosmos.base.v1beta1.Coin amount = 3 [(gogoproto.nullable) = false];
+  uint64 window = 4;
+}
+
+// MsgDelayedSendResponse returns the id of the pending send, which is what
+// MsgCancelSend needs. Zero when the send was final-only (nothing pending).
+message MsgDelayedSendResponse {
+  uint64 id = 1;
+  bool final = 2;
+}
+
+// MsgCancelSend defines the MsgCancelSend message.
+message MsgCancelSend {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 id = 2;
+}
+
+// MsgCancelSendResponse defines the MsgCancelSendResponse message.
+message MsgCancelSendResponse {}
+
+// MsgSetFinalOnly defines the MsgSetFinalOnly message.
+message MsgSetFinalOnly {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bool finalonly = 2;
+}
+
+// MsgSetFinalOnlyResponse defines the MsgSetFinalOnlyResponse message.
+message MsgSetFinalOnlyResponse {}

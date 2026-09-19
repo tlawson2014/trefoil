@@ -46,7 +46,7 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
 	"trefoil/docs"
-	recoverymodulekeeper "trefoil/x/recovery/keeper"
+	undomodulekeeper "trefoil/x/undo/keeper"
 )
 
 const (
@@ -99,8 +99,8 @@ type App struct {
 	TransferKeeper      ibctransferkeeper.Keeper
 
 	// simulation manager
-	sm             *module.SimulationManager
-	RecoveryKeeper recoverymodulekeeper.Keeper
+	sm         *module.SimulationManager
+	UndoKeeper undomodulekeeper.Keeper
 }
 
 func init() {
@@ -180,7 +180,7 @@ func New(
 		&app.ConsensusParamsKeeper,
 		&app.CircuitBreakerKeeper,
 		&app.ParamsKeeper,
-		&app.RecoveryKeeper,
+		&app.UndoKeeper,
 	); err != nil {
 		panic(err)
 	}
@@ -196,15 +196,6 @@ func New(
 	if err := app.registerIBCModules(appOpts); err != nil {
 		panic(err)
 	}
-
-	// Trefoil's transaction checks: the SDK's standard chain plus the
-	// guardian-bootstrap decorator (see ante.go). The tx module's own ante
-	// handler is switched off in app_config.go so this one is used instead.
-	anteHandler, err := newAnteHandler(app)
-	if err != nil {
-		panic(err)
-	}
-	app.SetAnteHandler(anteHandler)
 
 	/****  Module Options ****/
 

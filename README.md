@@ -2,55 +2,65 @@
 
 [![Unit tests](https://github.com/tlawson2014/trefoil/actions/workflows/go-unit.yml/badge.svg)](https://github.com/tlawson2014/trefoil/actions/workflows/go-unit.yml)
 
-A Cosmos SDK chain where losing your key isn't the end. Every account can
-nominate guardians; if the key is lost, a majority of them can move the
-account to a new key after a waiting period the original key can veto.
-No company holds your coins, and recovery is the default for every account,
-not an add-on.
+The coin with an undo button.
 
-Three interlocking rings — none can be pulled free without the others.
+Every payment on Trefoil has a short countdown before it becomes final.
+Until it hits zero, the sender can take it back with one transaction.
+After that it is as final as any other blockchain — no company, no
+validator, nobody can reverse it. Sending to the wrong address, the most
+common way people lose crypto, stops being a catastrophe and becomes a
+button press.
 
-**Status:** working prototype. Full recovery flow proven end to end (lost
-key → guardian recovery → veto) and runs as a four-validator local network
-that survives a node going down. Not a live network. Nothing here has value.
+Three interlocking rings: send, wait, final.
+
+**Status:** working prototype. Undo, payout and the shop switch are all
+proven on a live chain (19 Sep 2026). Not a live network. Nothing here has
+value.
 
 Design doc: [docs/DESIGN.md](docs/DESIGN.md) — the pitch, the coin, the
-recovery rules, roadmap and open questions.
+undo rules, roadmap and open questions.
 
-## How recovery works
+## How undo works
 
-1. **Set guardians.** An account picks 1–7 guardians and a threshold that is
-   a strict majority (for 3 guardians: 2 or 3). Guardians can never spend.
-2. **Lose the key.** The owner makes a brand-new wallet.
-3. **Request.** A guardian submits `request-recovery <lost account> <new address>`.
-   This counts as the first approval.
-4. **Approve.** Other guardians approve until the threshold is met. At that
-   moment the waiting period starts (48 h on a real network; 60 s locally).
-5. **Cancel window.** During the wait, the lost account's *original* key — if
-   it still exists — can `cancel-recovery`. That is the defence against a
-   stolen key or tricked guardians.
-6. **Execute.** When the wait ends, the chain moves the account's entire
-   balance to the new address and carries the guardian set across. No human
-   signs this step; it happens at the end of a block.
+1. **Send.** `delayed-send <recipient> <amount> <window>`. The window is in
+   seconds: at least 2 minutes, at most 24 hours, default 10 minutes if
+   you pass 0. The coins leave your balance and sit in the chain's
+   holding account.
+2. **Wait.** The recipient can see the payment coming, but it does not
+   count towards their balance and they cannot spend it. Wallets show it
+   as *promised, not yours yet*.
+3. **Undo.** Any time before the window closes, the sender — and only the
+   sender — can `cancel-send <id>`. The coins come straight back.
+4. **Final.** When the window closes, the chain pays the coins out at the
+   end of the block. No human signs this step, and nothing can reverse it.
 
-Requests that never reach the threshold expire (7 days real / 1 h local).
+**The bait problem, and the answer.** A scammer could show you a pending
+payment, take your goods, then cancel. Three things stop that:
 
-**Zero-coin sign-up (v1.2).** A brand-new wallet can set its guardians
-*before it has ever received a coin* — its first `set-guardians` creates
-the account. On a stock Cosmos chain an address doesn't exist until money
-arrives, which would have made "protected from the moment you sign up" a
-lie. See `x/recovery/ante/` for how, and the per-block cap that stops the
-free path being used for spam.
+- A pending payment is never shown as money. Balances only move when a
+  payment is final.
+- **Final-only mode.** Any address can `set-final-only true`. Payments to
+  it cannot have a window: they land instantly and cannot be undone, and
+  a sender who tries to attach a window is refused. Market stalls, cafés,
+  anyone who hands over goods on the spot.
+- **The public tally.** Every address carries a count of sends started and
+  sends cancelled, readable by anyone. An address that keeps promising
+  and cancelling wears that history in the open, and wallets can warn
+  before you deal with it.
 
-**Safe destinations (v1.1).** An account can pre-register up to five backup
-addresses with `set-safe-destinations`. Once set, a recovery can *only* send
-funds to one of them, so two colluding guardians can at worst move your
-coins to your own spare key. Guardians decide *whether* a recovery happens;
-they no longer decide *where* the money goes.
+One address can have at most 20 undoable sends in flight, so nobody can
+flood someone with fake incoming payments.
 
-**v1 limitations:** the balance moves to a *new address*; staked coins stay
-on the old one. Keeping the *same* address (rotating the key underneath it)
-is the v2 design and needs wallet support to be usable.
+## How Trefoil got here
+
+Trefoil started as *a wallet you can't lose*: guardian-based account
+recovery built into the chain, proven end to end with a 48-hour veto
+window and safe destinations. It worked. It also asked every new user to
+set up three guardians before they could do anything, and on a chain with
+no users yet that meant writing down four seed phrases at sign-up. Nobody
+would. The delay-and-cancel engine underneath was sound, so it was pointed
+at a problem one person can solve alone: taking back a payment. The
+recovery code lives in this repo's history if it is ever wanted again.
 
 ## What's in here
 
@@ -59,18 +69,16 @@ Almost everything in this repo is standard Cosmos SDK plumbing generated by
 
 | Path | What it is |
 | --- | --- |
-| `proto/trefoil/recovery/v1/` | The data shapes: a guardian set, a recovery request, the parameters, and the transactions. Everything else is generated from these. |
-| `x/recovery/keeper/msg_server_*.go` | The transactions: **set-guardians**, **set-safe-destinations**, **request-recovery**, **approve-recovery**, **cancel-recovery**. Each file's top comment explains its rules. |
-| `x/recovery/ante/bootstrap.go` | The zero-coin sign-up: a never-seen address's first `set-guardians` creates its account. Signed with account 0 / sequence 0; verified on that basis; capped per block. |
-| `app/ante.go` | Trefoil's transaction-check chain: the SDK standard plus the bootstrap decorator. |
-| `x/recovery/keeper/abci.go` | The end-of-block job that executes recoveries whose waiting period is over, and drops expired requests. |
-| `x/recovery/keeper/helpers.go` | Small shared helpers (block time, guardian lookup, expiry). |
-| `x/recovery/keeper/recovery_test.go` | Tests for the whole flow — the design doc's "definition of done" as code. |
-| `x/recovery/keeper/safe_destinations_test.go` | Tests proving colluding guardians cannot recover funds to an address the owner didn't pre-approve. |
-| `x/recovery/types/errors.go` | Every reason a recovery transaction can be rejected, with a stable error code. |
-| `x/recovery/types/params.go` | The two dials: recovery delay and request expiry. |
-| `config.yml` | The local dev network: test accounts, one validator, zero fees, shortened timings. |
-| `docs/DESIGN.md` | The design doc. |
+| `proto/trefoil/undo/v1/` | The data shapes: a pending send, an address's tally, the parameters, and the transactions. Everything else is generated from these. |
+| `x/undo/keeper/msg_server_delayed_send.go` | The send: checks, the final-only rule, coins into holding, the pending record. |
+| `x/undo/keeper/msg_server_cancel_send.go` | The undo button: sender only, before the window closes, coins back, tally up. |
+| `x/undo/keeper/msg_server_set_final_only.go` | The shop switch. |
+| `x/undo/keeper/abci.go` | The end-of-block job that pays out sends whose window has closed. |
+| `x/undo/keeper/undo_test.go` | Tests for the whole flow — the design doc's "definition of done" as code. |
+| `x/undo/types/params.go` | The three dials: minimum, default and maximum window. |
+| `x/undo/types/errors.go` | Every reason a send or cancel can be refused, with a stable code. |
+| `config.yml` | The local dev network: test accounts, validators, zero fees, window settings. |
+| `wallet/` | The web wallet. `src/chain.js` is keys, signing and REST; `src/app.js` is the screens; `dist/app.js` is the built bundle. |
 
 ## Prerequisites
 
@@ -84,10 +92,10 @@ Almost everything in this repo is standard Cosmos SDK plumbing generated by
 
 ```bash
 git clone https://github.com/tlawson2014/trefoil && cd trefoil
-go test ./x/recovery/...
+go test ./x/undo/...
 ```
 
-You want `ok  trefoil/x/recovery/keeper` and no `FAIL`.
+You want `ok  trefoil/x/undo/keeper` and no `FAIL`.
 
 ### 2. Start the chain
 
@@ -99,104 +107,72 @@ The first run compiles everything (several minutes). When you see
 `Blockchain is running` and a list of test accounts, Trefoil is producing
 blocks. Leave this window open.
 
-### 3. The recovery walkthrough
+### 3. The undo walkthrough
 
 Open a **second** terminal in the same folder. Each block below is one
-paste. The local chain's recovery delay is 60 seconds, so where timing
-matters the cancel is in the same block as the request.
+paste. The shortest window is two minutes, so the walkthrough has a
+couple of real waits in it.
 
 ```bash
-# Shorthand so the commands stay readable.
 alias t='trefoild --keyring-backend test'
-TOM=$(t keys show tom -a); G1=$(t keys show guardian1 -a)
-G2=$(t keys show guardian2 -a); G3=$(t keys show guardian3 -a)
-t q bank balances $TOM                  # 5000000000utfl = 5,000 TFL
+TOM=$(t keys show tom -a); BOB=$(t keys show bob -a); SHOP=$(t keys show shop -a)
+t q bank balances $BOB                  # 1000000000utfl = 1,000 TFL
 ```
 
-**Step 1 — Tom sets three guardians, any 2 must agree.**
+**Step 1 — send, then take it back.**
 
 ```bash
-t tx recovery set-guardians $G1,$G2,$G3 2 --from tom -y
+t tx undo delayed-send $BOB 100000000utfl 120 --from tom -y
 sleep 6
-t q recovery get-guardianset $TOM      # three guardians, threshold 2
+t q undo list-pending                   # your send, with the time it would go through
+t q bank balances $BOB                  # unchanged: promised, not his
+t tx undo cancel-send 0 --from tom -y
+sleep 6
+t q undo list-pending                   # empty
+t q bank balances $TOM                  # back to 5000000000utfl
+t q undo get-record $TOM                # sent: 1, cancelled: 1
 ```
 
-**Step 2 — rehearse the veto.** Two guardians approve a recovery; Tom,
-who still has his key, cancels it. Nothing moves.
+**Step 2 — send, and let it go through.**
 
 ```bash
-t keys add stranger
-STRANGER=$(t keys show stranger -a)
-t tx recovery request-recovery $TOM $STRANGER --from guardian1 -y
-sleep 6
-t tx recovery approve-recovery $TOM --from guardian2 -y
-sleep 6
-t tx recovery cancel-recovery $TOM --from tom -y
-sleep 70
-t q bank balances $TOM                  # still 5000000000utfl
-t q bank balances $STRANGER             # empty
+t tx undo delayed-send $BOB 100000000utfl 120 --from tom -y
+sleep 130
+t q bank balances $BOB                  # 1100000000utfl — it arrived by itself
+t tx undo cancel-send 1 --from tom -y   # refused: nothing to undo any more
 ```
 
-**Step 3 — lose the key for real, and recover.**
+**Step 3 — the shop switch.** The shop opts out of undo; an undoable
+payment to it is refused, an instant one lands at once. (Wait a block
+between sends so they don't share a sequence number.)
 
 ```bash
-t keys add newtom
-NEWTOM=$(t keys show newtom -a)
-t keys delete tom -y                    # Tom can no longer sign anything
-t tx recovery request-recovery $TOM $NEWTOM --from guardian1 -y
+t tx undo set-final-only true --from shop -y
 sleep 6
-t tx recovery approve-recovery $TOM --from guardian2 -y
+t tx undo delayed-send $SHOP 1000000utfl 120 --from tom -y   # accepted for checking, refused in the block
 sleep 6
-t q recovery get-recovery $TOM          # executeat is set: the 60 s clock is running
-sleep 70
-t q bank balances $NEWTOM               # 5000000000utfl — the coins moved
-t q bank balances $TOM                  # empty
-t q recovery get-guardianset $NEWTOM    # guardians followed Tom to his new address
-```
-
-**Step 4 — safe destinations: guardians can't send your coins anywhere else.**
-
-```bash
-t keys add backup
-BACKUP=$(t keys show backup -a)
-t tx recovery set-safe-destinations $BACKUP --from newtom -y
+t tx undo delayed-send $SHOP 1000000utfl 0 --from tom -y     # instant
 sleep 6
-t tx recovery request-recovery $NEWTOM $G3 --from guardian1 -y      # refused: not a safe destination
-t tx recovery request-recovery $NEWTOM $BACKUP --from guardian1 -y  # accepted
-sleep 6
-t tx recovery cancel-recovery $NEWTOM --from newtom -y              # tidy up; we're not recovering again
-```
-
-**Step 5 — one guardian is not enough.**
-
-```bash
-t tx recovery request-recovery $NEWTOM $G3 --from guardian1 -y
-sleep 70
-t q bank balances $NEWTOM               # unchanged: one approval never executes
-```
-
-**Step 6 — a wallet with no coins sets guardians.** This is the v1.2
-bootstrap path. The new key has never received anything, so the CLI can't
-look up its account; we sign offline with the only values a fresh wallet
-can know (account 0, sequence 0) and broadcast the result.
-
-```bash
-t keys add fresh
-FRESH=$(t keys show fresh -a)
-t q bank balances $FRESH                # empty: this account does not exist yet
-t tx recovery set-guardians $G1,$G2,$G3 2 --from fresh \
-  --generate-only --offline --account-number 0 --sequence 0 --chain-id trefoil > /tmp/unsigned.json
-t tx sign /tmp/unsigned.json --from fresh --offline --account-number 0 --sequence 0 --chain-id trefoil > /tmp/signed.json
-t tx broadcast /tmp/signed.json         # code: 0
-sleep 6
-t q recovery get-guardianset $FRESH     # protected, with a balance of zero
-t q auth account $FRESH                 # the account now exists, sequence 1
+t q bank balances $SHOP                 # 2000000utfl
 ```
 
 ### 4. Stop and reset
 
 Press `q` in the first window. To wipe the chain and start fresh (needed
 after editing `config.yml`): `ignite chain serve --reset-once`.
+
+## The wallet
+
+`wallet/` is a web wallet — one page, no install, works on a phone — where
+every send has a visible countdown and an Undo button, and incoming
+payments show as *arriving in…* until they're final. The key never leaves
+the browser. See [wallet/README.md](wallet/README.md) and the screen flow
+in [docs/WALLET-FLOW.md](docs/WALLET-FLOW.md).
+
+```bash
+ignite chain serve                       # terminal 1
+cd wallet && python3 -m http.server 8080 # terminal 2, then open http://localhost:8080
+```
 
 ## Run it as a network (four validators)
 
@@ -233,14 +209,10 @@ Nothing was lost while the chain was paused — that's the point. Halting is
 the safe failure; a chain that kept going on 50% could fork into two
 histories.
 
-The stake amounts are in `config.yml`; the comment there explains why four
-equal validators and not three.
-
 ## Roadmap
 
-See [docs/DESIGN.md](docs/DESIGN.md#roadmap). In short: safe destinations →
-multi-node local testnet → small public testnet → a wallet with guardian
-setup in onboarding → same-address recovery → legal review → mainnet.
+See [docs/DESIGN.md](docs/DESIGN.md#roadmap). In short: wallet with undo →
+small public testnet → spending vault → legal review → mainnet.
 
 ## Licence
 

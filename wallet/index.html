@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trefoil Wallet</title>
+<style>
+  :root {
+    --bg: #f6f7f4; --fg: #1c1f1a; --muted: #6b7266; --card: #ffffff; --line: #e1e4dd;
+    --accent: #2f6f4f; --accent-fg: #ffffff; --warn-bg: #fff4e0; --warn-fg: #7a4b00;
+    --ok-bg: #e8f5ec; --ok-fg: #1e5a38; --danger: #b3261e; --danger-bg: #fdecea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131512; --fg: #e8ebe4; --muted: #9aa294; --card: #1c1f1a; --line: #2c3129;
+      --accent: #5fb587; --accent-fg: #0f1a13; --warn-bg: #3a2a08; --warn-fg: #f3c56b;
+      --ok-bg: #16301f; --ok-fg: #9fdcb5; --danger: #ff6b61; --danger-bg: #3a1512; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 440px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 22px; margin: 24px 0 8px; }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .error { color: var(--danger); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .brand svg { width: 36px; height: 36px; }
+  button { font: inherit; border: 0; border-radius: 12px; padding: 14px 18px; cursor: pointer; width: 100%; margin-top: 10px; }
+  button.primary { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  button.secondary { background: var(--card); color: var(--fg); border: 1px solid var(--line); }
+  button.link { background: none; color: var(--muted); text-decoration: underline; padding: 8px; width: auto; }
+  button.danger { background: var(--danger); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .6; cursor: default; }
+  input, textarea { font: inherit; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--fg); margin-top: 6px; }
+  label { display: block; margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-top: 12px; }
+  .card.ok { background: var(--ok-bg); color: var(--ok-fg); border-color: transparent; cursor: pointer; }
+  .card.warn { background: var(--warn-bg); color: var(--warn-fg); border-color: transparent; cursor: pointer; }
+  .card.alarm { background: var(--danger-bg); border: 2px solid var(--danger); }
+  .words { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .words li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px; font-weight: 600; font-family: ui-monospace, Menlo, monospace; font-size: 15px; }
+  .words li span { color: var(--muted); font-weight: 400; margin-right: 6px; font-size: 12px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .chip { width: auto; margin: 0; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; font-family: ui-monospace, Menlo, monospace; }
+  .balance { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; margin: 8px 0 0; }
+  .balance small { font-size: 18px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .addr { font-family: ui-monospace, Menlo, monospace; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .addr-full { font-family: ui-monospace, Menlo, monospace; font-size: 13px; word-break: break-all; }
+  .row { display: flex; gap: 10px; }
+  .row button { margin-top: 12px; }
+  .slot { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .slot:first-of-type { border-top: 0; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 12px 18px; border-radius: 10px; max-width: 90vw; z-index: 10; }
+  .toast.error { background: var(--danger); color: #fff; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; }
+  .topbar button { width: auto; margin: 0; }
+  #qr { display: block; margin: 16px auto; background: #fff; padding: 8px; border-radius: 12px; }
+  .red { color: var(--danger); font-weight: 700; }
+  .pend { list-style: none; padding: 0; margin: 8px 0 0; }
+  .pend li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .pend li.in { background: transparent; border-style: dashed; color: var(--muted); }
+  .pend .amt { font-weight: 700; }
+  .pend .in .amt { font-weight: 500; }
+  .pend .cd { font-family: ui-monospace, Menlo, monospace; }
+  .pend button { width: auto; margin: 0; padding: 8px 14px; }
+  .seg { display: flex; gap: 6px; margin-top: 8px; }
+  .seg button { margin: 0; padding: 10px 6px; background: var(--card); border: 1px solid var(--line); color: var(--fg); font-size: 14px; }
+  .seg button.on { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  .switch { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .switch input { width: auto; margin: 0; transform: scale(1.4); }
+  h3 { font-size: 14px; color: var(--muted); margin: 20px 0 0; text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<main>
+
+<!-- 1. Welcome -->
+<section data-screen="welcome" hidden>
+  <div class="brand">
+    <svg viewBox="0 0 40 40" fill="none" stroke="var(--accent)" stroke-width="3"><circle cx="20" cy="13" r="9"/><circle cx="13" cy="25" r="9"/><circle cx="27" cy="25" r="9"/></svg>
+    <h1>Trefoil</h1>
+  </div>
+  <h2 style="margin-top:0">The coin with an undo button.</h2>
+  <p>Every payment waits a few minutes before it's final. Sent to the wrong address? Take it back.</p>
+  <button class="primary" id="btn-create">Create a wallet</button>
+  <button class="secondary" id="btn-restore">I already have one</button>
+  <p class="muted" id="welcome-status">Checking the chain…</p>
+</section>
+
+<!-- 2. Recovery phrase -->
+<section data-screen="phrase" hidden>
+  <h1>Your recovery phrase</h1>
+  <p>These 12 words are your wallet. Write them down and keep them somewhere safe. <strong>This is the only time we'll show them.</strong></p>
+  <ol class="words" id="phrase-words"></ol>
+  <button class="secondary" id="btn-phrase-copy">Copy to clipboard</button>
+  <p class="muted">If you copy it, paste it somewhere safe and then clear your clipboard.</p>
+  <button class="primary" id="btn-phrase-written">I've written them down</button>
+</section>
+
+<!-- 3. Confirm -->
+<section data-screen="confirm" hidden>
+  <h1>Quick check</h1>
+  <p id="confirm-ask"></p>
+  <div class="grid" id="confirm-grid"></div>
+  <p class="muted" id="confirm-progress"></p>
+</section>
+
+<!-- Restore -->
+<section data-screen="restore" hidden>
+  <h1>Your 12-word recovery phrase</h1>
+  <p class="muted">This is the only screen in Trefoil that ever asks for your phrase. If any other page asks for it, it's fake.</p>
+  <label>Recovery phrase<textarea id="restore-phrase" rows="3" placeholder="twelve words separated by spaces"></textarea></label>
+  <button class="primary" id="btn-restore-go">Restore</button>
+  <button class="link" id="btn-back-welcome">Back</button>
+</section>
+
+<!-- Home -->
+<section data-screen="home" id="home" hidden>
+  <div class="topbar">
+    <div class="brand" style="margin:0"><svg viewBox="0 0 40 40" fill="none" stroke="var(--accent)" stroke-width="3"><circle cx="20" cy="13" r="9"/><circle cx="13" cy="25" r="9"/><circle cx="27" cy="25" r="9"/></svg><strong>Trefoil</strong></div>
+    <button class="link" id="btn-settings">Settings</button>
+  </div>
+
+  <p class="balance"><span id="balance">…</span><small>TFL</small></p>
+  <p class="addr" id="home-addr" title="Tap to copy"></p>
+  <p class="addr-full muted" id="home-addr-full" hidden></p>
+
+  <div class="row">
+    <button class="primary" id="btn-send">Send</button>
+    <button class="secondary" id="btn-receive">Receive</button>
+  </div>
+
+  <div id="outgoing-wrap" hidden>
+    <h3>On its way — you can still undo</h3>
+    <ul class="pend" id="outgoing"></ul>
+  </div>
+
+  <div id="incoming-wrap" hidden>
+    <h3>Promised to you — not yours yet</h3>
+    <ul class="pend" id="incoming"></ul>
+    <p class="muted">These arrive when their countdown ends. Until then the sender can take them back, so <strong>don't hand anything over yet</strong>.</p>
+  </div>
+
+  <div class="card ok" id="finalonly-banner" hidden>
+    <strong>Final-only is on.</strong> Payments to you land instantly and can't be undone.
+  </div>
+
+  <p class="muted" id="net-status"></p>
+</section>
+
+<!-- Send -->
+<section data-screen="send" hidden>
+  <h1>Send TFL</h1>
+  <label>To<input id="send-to" placeholder="trefoil1…" autocomplete="off"></label>
+  <label>Amount (TFL)<input id="send-amount" inputmode="decimal" placeholder="10"></label>
+  <label>Undo window — how long you can take it back</label>
+  <div class="seg" id="window-seg">
+    <button data-w="120">2 min</button>
+    <button data-w="600" class="on">10 min</button>
+    <button data-w="3600">1 hour</button>
+    <button data-w="86400">24 hours</button>
+  </div>
+  <div id="recipient-note" class="card" hidden></div>
+  <p class="muted">No fee. The coins leave your balance now and arrive when the countdown ends.</p>
+  <button class="primary" id="btn-send-go">Send</button>
+  <button class="link" id="btn-send-back">Back</button>
+</section>
+
+<!-- Receive -->
+<section data-screen="receive" hidden>
+  <h1>Receive</h1>
+  <canvas id="qr"></canvas>
+  <p class="addr-full" id="receive-addr"></p>
+  <button class="secondary" id="btn-copy-addr">Copy address</button>
+  <p class="muted" id="receive-note">Payments to you show as <em>promised</em> until their countdown ends, then they're yours.</p>
+  <button class="link" id="btn-receive-back">Back</button>
+</section>
+
+<!-- Settings -->
+<section data-screen="settings" hidden>
+  <h1>Settings</h1>
+
+  <div class="card">
+    <div class="switch">
+      <div><strong>I sell things — final payments only</strong><p class="muted" style="margin:4px 0 0">Payments to you land instantly and can't be undone. Turn this on if you hand over goods on the spot.</p></div>
+      <input type="checkbox" id="set-finalonly">
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Your undo record</strong>
+    <p class="muted" id="my-record" style="margin:4px 0 0">…</p>
+    <p class="muted" style="margin:4px 0 0">This is public. Anyone can see how many payments an address has started and taken back.</p>
+  </div>
+
+  <label>Chain API<input id="set-rest"></label>
+  <label>Chain ID<input id="set-chain"></label>
+  <p class="muted">Only https is accepted for anything that isn't localhost.</p>
+  <button class="primary" id="btn-settings-save">Save and reload</button>
+  <button class="secondary" id="btn-forget">Remove wallet from this browser</button>
+  <button class="link" id="btn-settings-back">Back</button>
+</section>
+
+</main>
+<div class="toast" id="toast" hidden></div>
+<script src="dist/app.js"></script>
+</body>
+</html>
