@@ -5,14 +5,14 @@
 import QRCode from "qrcode";
 import {
   CONFIG, newWallet, walletFromMnemonic, addressOf, isAddress,
-  getBalance, getRecord, pendingFor, getParams, latestHeight,
+  getBalance, getRecord, pendingFor, getParams, latestHeight, historyFromChain,
   sendTx, MsgDelayedSend, MsgCancelSend, MsgSetFinalOnly,
   fmt, parseAmount, short, countdown,
 } from "./chain.js";
 
 const STORE = "trefoil.wallet";
 const $ = (id) => document.getElementById(id);
-const S = { wallet: null, address: null, params: { min: 120, def: 600, max: 86400 }, pending: { outgoing: [], incoming: [] }, record: null };
+const S = { wallet: null, address: null, params: { min: 120, def: 600, max: 86400 }, pending: { outgoing: [], incoming: [] }, record: null, history: [], seenIn: {}, chainHistory: false };
 
 // ---------------------------------------------------------------------------
 // Storage (prototype: the recovery phrase is kept in browser storage as-is.
@@ -25,7 +25,104 @@ function load() {
 function save(data) {
   try { localStorage.setItem(STORE, JSON.stringify(data)); } catch {}
 }
-function persist() { save({ mnemonic: S.wallet?.mnemonic }); }
+function persist() { save({ mnemonic: S.wallet?.mnemonic, history: S.history, seenIn: S.seenIn }); }
+
+// ---------------------------------------------------------------------------
+// History (this device only). The chain has no "my history" query, so the
+// wallet writes down what it does and what it sees: a send when you make it,
+// an undo when you press it, and a "final" when a pending row disappears
+// without being undone. Same for incoming.
+//   {kind: "sent"|"received", status: "pending"|"final"|"cancelled", ...}
+// ---------------------------------------------------------------------------
+
+function addHist(entry) {
+  S.history.unshift({ at: Date.now(), ...entry });
+  S.history = S.history.slice(0, 50);
+  persist();
+}
+// The chain is the truth; the local list is a cache that keeps the screen
+// instant and covers a node that can't answer. Chain rows win on status.
+async function mergeChainHistory() {
+  let rows;
+  try {
+    rows = await historyFromChain(S.address);
+  } catch {
+    S.chainHistory = false;           // the node can't search; local list stands
+    return;
+  }
+  S.chainHistory = true;
+  let changed = false;
+  for (const r of rows) {
+    const mine = S.history.find((h) => (r.id != null && h.id === r.id && h.kind === "sent")
+      || (r.id == null && h.kind === r.kind && h.addr === r.addr && h.amount === r.amount && Math.abs(h.at - r.at) < 120000));
+    if (!mine) { S.history.push({ ...r }); changed = true; }
+    else if (mine.status !== r.status && r.status !== "pending") { mine.status = r.status; mine.at = r.at; changed = true; }
+    else if (mine.id == null && r.id != null) { mine.id = r.id; changed = true; }
+  }
+  S.history.sort((x, y) => y.at - x.at);
+  S.history = S.history.slice(0, 50);
+  if (changed) persist();
+}
+
+function reconcileHistory() {
+  const outIds = new Set(S.pending.outgoing.map((p) => p.id));
+  const inIds = new Set(S.pending.incoming.map((p) => p.id));
+  let changed = false;
+  // A send we made but haven't matched to a chain id yet: find it by
+  // recipient + amount among the outgoing rows that no history entry owns.
+  const owned = new Set(S.history.map((h) => h.id).filter((x) => x != null));
+  for (const h of S.history) {
+    if (h.kind === "sent" && h.status === "pending" && h.id == null) {
+      const p = S.pending.outgoing.find((x) => !owned.has(x.id) && x.recipient === h.addr && x.amount.toString() === h.amount);
+      if (p) { h.id = p.id; owned.add(p.id); changed = true; }
+    }
+  }
+  for (const h of S.history) {
+    if (h.status === "pending" && h.kind === "sent" && h.id != null && !outIds.has(h.id)) { h.status = "final"; h.at = Date.now(); changed = true; }
+  }
+  // Incoming: remember every promised payment we see; when one vanishes it landed.
+  for (const p of S.pending.incoming) {
+    if (!S.seenIn[p.id]) { S.seenIn[p.id] = { from: p.sender, amount: p.amount.toString() }; changed = true; }
+  }
+  for (const id of Object.keys(S.seenIn)) {
+    if (!inIds.has(Number(id))) {
+      const r = S.seenIn[id];
+      addHist({ kind: "received", status: "final", id: Number(id), addr: r.from, amount: r.amount });
+      delete S.seenIn[id];
+      changed = true;
+    }
+  }
+  if (changed) persist();
+}
+function when(ts) {
+  const d = new Date(ts);
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+function renderHistory() {
+  const sent = S.history.filter((h) => h.status === "final").slice(0, 8);
+  const cancelled = S.history.filter((h) => h.status === "cancelled").slice(0, 8);
+  $("hist-sent-wrap").hidden = sent.length === 0;
+  $("hist-cancel-wrap").hidden = cancelled.length === 0;
+  const row = (h) => `<li><span>${h.kind === "received" ? "Received" : "Sent"} <strong>${fmt(BigInt(h.amount))} TFL</strong> ${h.kind === "received" ? "from" : "to"} <code data-copy="${h.addr}" title="Tap to copy">${short(h.addr)}</code></span><span class="when">${when(h.at)}</span></li>`;
+  $("hist-source").textContent = S.chainHistory
+    ? "Read from the chain — this list follows your recovery phrase to any device."
+    : "Kept on this device only — this node can't search its own history.";
+  $("hist-source").hidden = sent.length === 0 && cancelled.length === 0;
+  $("hist-sent").innerHTML = sent.map(row).join("");
+  $("hist-cancel").innerHTML = cancelled.map((h) => `<li><span><strong>${fmt(BigInt(h.amount))} TFL</strong> to <code data-copy="${h.addr}" title="Tap to copy">${short(h.addr)}</code> — undone</span><span class="when">${when(h.at)}</span></li>`).join("");
+  wireCopies();
+}
+// Any <code data-copy> anywhere copies its address on tap.
+function wireCopies() {
+  document.querySelectorAll("code[data-copy]").forEach((c) => (c.onclick = () => copy(c.dataset.copy)));
+}
+// Unique addresses you've sent to, most recent first.
+function knownAddresses() {
+  const out = [];
+  for (const h of S.history) if (h.kind === "sent" && !out.includes(h.addr)) out.push(h.addr);
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Screens
@@ -141,7 +238,10 @@ async function refresh() {
     S.pending = pending;
     S.record = record;
     $("balance").textContent = fmt(bal);
+    reconcileHistory();
+    await mergeChainHistory();
     renderPending();
+    renderHistory();
     $("finalonly-banner").hidden = !record.finalonly;
     $("net-status").textContent = "Connected to " + CONFIG.rest.replace(/^https?:\/\//, "");
     $("net-status").className = "muted";
@@ -202,6 +302,8 @@ async function undo(id, btn) {
   try {
     await sendTx(S.wallet, [{ typeUrl: MsgCancelSend.typeUrl, value: { creator: S.address, id } }],
       { onStatus: (s) => (btn.textContent = s) });
+    const h = S.history.find((x) => x.kind === "sent" && x.id === id);
+    if (h) { h.status = "cancelled"; h.at = Date.now(); persist(); }
     toast(`Took back ${fmt(p.amount)} TFL.`);
     await refresh();
   } catch (err) {
@@ -225,9 +327,24 @@ $("window-seg").querySelectorAll("button").forEach((b) => {
 
 $("btn-send").onclick = () => {
   $("send-to").value = ""; $("send-amount").value = "";
+  $("send-to").className = ""; $("send-to-hint").textContent = ""; $("send-to-hint").className = "hint";
   $("recipient-note").hidden = true; recipientInfo = null;
+  const recent = knownAddresses().slice(0, 5);
+  $("send-recent").innerHTML = recent.map((r) => `<button type="button" data-addr="${r}">${short(r)}</button>`).join("");
+  $("send-recent").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("send-to").value = b.dataset.addr; $("send-to").dispatchEvent(new Event("input")); }));
   show("send");
 };
+
+function markAddress() {
+  const v = $("send-to").value.trim();
+  const inp = $("send-to"), hint = $("send-to-hint");
+  if (!v) { inp.className = ""; hint.className = "hint"; hint.textContent = ""; return false; }
+  if (v === S.address) { inp.className = "invalid"; hint.className = "hint bad"; hint.textContent = "That's your own address."; return false; }
+  if (isAddress(v)) { inp.className = "valid"; hint.className = "hint ok"; hint.textContent = "Valid Trefoil address."; return true; }
+  inp.className = "invalid"; hint.className = "hint bad";
+  hint.textContent = v.startsWith("trefoil1") ? `Not quite — a Trefoil address is 46 characters (this is ${v.length}).` : "A Trefoil address starts with trefoil1.";
+  return false;
+}
 $("btn-send-back").onclick = () => show("home");
 
 // As soon as a valid address is typed, look up what the chain knows about it.
@@ -235,7 +352,7 @@ $("send-to").oninput = async () => {
   const to = $("send-to").value.trim();
   recipientInfo = null;
   $("recipient-note").hidden = true;
-  if (!isAddress(to)) return;
+  if (!markAddress()) return;
   try {
     const r = await getRecord(to);
     if ($("send-to").value.trim() !== to) return; // they kept typing
@@ -281,10 +398,17 @@ $("btn-send-go").onclick = async (e) => {
       typeUrl: MsgDelayedSend.typeUrl,
       value: { creator: S.address, recipient: to, amount: { denom: CONFIG.denom, amount: amt.toString() }, window },
     }], { onStatus: (s) => (e.target.textContent = s) });
+    addHist({ kind: "sent", status: finalOnly ? "final" : "pending", id: null, addr: to, amount: amt.toString() });
     toast(finalOnly ? `Sent ${fmt(amt)} TFL — final.` : `Sent ${fmt(amt)} TFL. You can undo it from Home.`);
     enterHome();
-  } catch (err) { toast(err.message, true); }
-  finally { busy(e.target, false, "Send"); }
+  } catch (err) {
+    toast(err.message, true);
+    if (/address|recipient|final payments|yourself/i.test(err.message)) {
+      $("send-to").className = "invalid";
+      $("send-to-hint").className = "hint bad";
+      $("send-to-hint").textContent = err.message;
+    }
+  } finally { busy(e.target, false, "Send"); }
 };
 
 function countdownWords(sec) {
@@ -313,6 +437,10 @@ $("btn-settings").onclick = () => {
   $("set-finalonly").checked = !!S.record?.finalonly;
   const r = S.record || { sent: 0, cancelled: 0 };
   $("my-record").textContent = r.sent === 0 ? "No undoable payments sent yet." : `${r.sent} sent, ${r.cancelled} taken back.`;
+  const book = knownAddresses();
+  $("abook-wrap").hidden = book.length === 0;
+  $("abook").innerHTML = book.map((addr) => `<li><code class="addr-full" data-copy="${addr}" title="Tap to copy">${addr}</code></li>`).join("");
+  wireCopies();
   show("settings");
 };
 $("btn-settings-back").onclick = () => show("home");
@@ -359,6 +487,8 @@ $("btn-forget").onclick = () => {
   if (saved?.mnemonic) {
     S.wallet = await walletFromMnemonic(saved.mnemonic);
     S.address = await addressOf(S.wallet);
+    S.history = saved.history || [];
+    S.seenIn = saved.seenIn || {};
     enterHome();
   } else {
     show("welcome");

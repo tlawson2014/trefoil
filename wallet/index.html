@@ -69,6 +69,23 @@
   .switch { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .switch input { width: auto; margin: 0; transform: scale(1.4); }
   h3 { font-size: 14px; color: var(--muted); margin: 20px 0 0; text-transform: uppercase; letter-spacing: .04em; }
+  input.valid { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+  input.invalid { border-color: var(--danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 35%, transparent); }
+  .hint { font-size: 13px; margin: 4px 0 0; min-height: 18px; }
+  .hint.ok { color: var(--accent); }
+  .hint.bad { color: var(--danger); }
+  .hist { list-style: none; padding: 0; margin: 8px 0 0; }
+  .hist li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .hist li:first-child { border-top: 0; }
+  .hist .when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .hist code, .abook code { cursor: pointer; }
+  .hist code:hover, .abook code:hover { text-decoration: underline; }
+  .abook { list-style: none; padding: 0; margin: 8px 0 0; }
+  .abook li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; display: flex; justify-content: space-between; gap: 10px; }
+  .abook li:first-child { border-top: 0; }
+  .abook .addr-full { font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chips button { width: auto; margin: 0; padding: 6px 10px; font-size: 13px; font-family: ui-monospace, Menlo, monospace; background: var(--card); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; }
 </style>
 </head>
 <body>
@@ -145,13 +162,27 @@
     <strong>Final-only is on.</strong> Payments to you land instantly and can't be undone.
   </div>
 
+  <div class="card" id="hist-sent-wrap" hidden>
+    <strong>Recent payments</strong>
+    <ul class="hist" id="hist-sent"></ul>
+  </div>
+
+  <div class="card" id="hist-cancel-wrap" hidden>
+    <strong>Taken back</strong>
+    <ul class="hist" id="hist-cancel"></ul>
+  </div>
+
+  <p class="muted" id="hist-source" hidden></p>
+
   <p class="muted" id="net-status"></p>
 </section>
 
 <!-- Send -->
 <section data-screen="send" hidden>
   <h1>Send TFL</h1>
-  <label>To<input id="send-to" placeholder="trefoil1…" autocomplete="off"></label>
+  <label>To<input id="send-to" placeholder="trefoil1…" autocomplete="off" spellcheck="false"></label>
+  <p class="hint" id="send-to-hint"></p>
+  <div class="chips" id="send-recent"></div>
   <label>Amount (TFL)<input id="send-amount" inputmode="decimal" placeholder="10"></label>
   <label>Undo window — how long you can take it back</label>
   <div class="seg" id="window-seg">
@@ -193,6 +224,12 @@
     <p class="muted" style="margin:4px 0 0">This is public. Anyone can see how many payments an address has started and taken back.</p>
   </div>
 
+  <div class="card" id="abook-wrap" hidden>
+    <strong>Addresses you've sent to</strong>
+    <p class="muted" style="margin:4px 0 0">Tap one to copy it.</p>
+    <ul class="abook" id="abook"></ul>
+  </div>
+
   <label>Chain API<input id="set-rest"></label>
   <label>Chain ID<input id="set-chain"></label>
   <p class="muted">Only https is accepted for anything that isn't localhost.</p>
@@ -203,6 +240,6 @@
 
 </main>
 <div class="toast" id="toast" hidden></div>
-<script src="dist/app.js"></script>
+<script src="dist/app.js?v=3"></script>
 </body>
 </html>

@@ -222,6 +222,58 @@ export async function getParams() {
   return { min: Number(x.minwindow || 120), def: Number(x.defaultwindow || 600), max: Number(x.maxwindow || 86400) };
 }
 
+// ---------------------------------------------------------------------------
+// History, read from the chain itself
+//
+// A Cosmos chain stores blocks, not "everything address X ever did" — so there
+// is normally an indexer service in between. CometBFT does keep a small index
+// of transactions by tag, which is enough for a wallet: we ask the node for
+// every transaction this address signed, then read the events our own module
+// emitted inside them (delayed_send, send_cancelled, final_send). Those events
+// carry the id, the recipient and the amount, so the list can be rebuilt on any
+// device from the 12 words alone.
+//
+// It can fail — a pruned node may have dropped old blocks, and a node can be
+// configured with the index off — so the wallet keeps a local copy as a
+// fallback and never depends on this working.
+export async function historyFromChain(address, limit = 40) {
+  const q = encodeURIComponent(`message.sender='${address}'`);
+  let body = null;
+  try {
+    body = await get(`/cosmos/tx/v1beta1/txs?query=${q}&order_by=ORDER_BY_DESC&pagination.limit=${limit}`);
+  } catch {
+    // Older SDK builds spell the parameter differently.
+    body = await get(`/cosmos/tx/v1beta1/txs?events=${q}&order_by=ORDER_BY_DESC&pagination.limit=${limit}`);
+  }
+  const rows = body?.tx_responses || [];
+  const out = [];
+  const cancelled = new Set();
+
+  for (const r of rows) {
+    if (Number(r.code) !== 0) continue;               // refused transactions aren't history
+    const at = r.timestamp ? Date.parse(r.timestamp) : Date.now();
+    for (const ev of r.events || []) {
+      const a = {};
+      for (const kv of ev.attributes || []) a[kv.key] = kv.value;
+      if (ev.type === "delayed_send") {
+        out.push({ kind: "sent", id: Number(a.id), addr: a.recipient, amount: amountOf(a.amount), at, status: "pending" });
+      } else if (ev.type === "final_send") {
+        out.push({ kind: "sent", id: null, addr: a.recipient, amount: amountOf(a.amount), at, status: "final" });
+      } else if (ev.type === "send_cancelled") {
+        cancelled.add(Number(a.id));
+      }
+    }
+  }
+  for (const h of out) if (h.id != null && cancelled.has(h.id)) h.status = "cancelled";
+  return out.sort((x, y) => y.at - x.at);
+}
+
+// Events carry amounts as a coin string, e.g. "100000000utfl".
+function amountOf(s) {
+  const m = String(s || "").match(/^(\d+)/);
+  return m ? m[1] : "0";
+}
+
 export async function getTx(hash) {
   return get(`/cosmos/tx/v1beta1/txs/${hash}`);
 }

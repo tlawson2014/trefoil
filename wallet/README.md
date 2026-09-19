@@ -14,8 +14,11 @@ signed bytes to a node.
   countdown, outside the balance, with a warning not to hand anything over
 - Before you send, the wallet tells you if the recipient is final-only (no
   undo) and how many of their own payments they've taken back
-- Settings: the shop switch (*I sell things — final payments only*) and your
-  own public undo record
+- The address box turns green when an address is valid and red with a reason
+  when it isn't; addresses you've sent to before appear as tap-to-fill chips
+- Home lists recent payments and ones you took back, in their own boxes
+- Settings: the shop switch (*I sell things — final payments only*), your own
+  public undo record, and your address book (tap an address to copy it)
 
 **Prototype limitations** (fix before anyone uses it for real):
 
@@ -25,6 +28,11 @@ signed bytes to a node.
   open.
 - Pending sends are found by scanning the chain's whole pending table, which
   is fine for a test chain and not for a busy one.
+- The address book lives in this browser only.
+- History is read back from the node's own transaction index, so it follows
+  your phrase to a new device. A node with that index switched off, or one
+  that has pruned old blocks, falls back to the copy in this browser — the
+  screen says which it is.
 
 ## Run it against your local chain
 
